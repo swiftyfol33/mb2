@@ -1,0 +1,98 @@
+{
+  "name": "GraphQL Cursor-Based Pagination Demo",
+  "modules": [
+    {
+      "id": 1,
+      "name": "HTTP - Initial Request",
+      "type": "http",
+      "operation": "request",
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-graphql-endpoint.com/graphql",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer YOUR_API_TOKEN"
+        },
+        "body": {
+          "query": "query FetchItems($first: Int!, $after: String) { items(first: $first, after: $after) { edges { node { id name } } pageInfo { endCursor hasNextPage } } }",
+          "variables": {
+            "first": 100,
+            "after": null
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "JSON - Parse Response",
+      "type": "json",
+      "operation": "parse",
+      "parameters": {
+        "content": "{{1.body}}"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Iterator - Process Items",
+      "type": "iterator",
+      "operation": "iterate",
+      "parameters": {
+        "array": "{{2.data.items.edges}}"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Router - Check for Next Page",
+      "type": "router",
+      "operation": "route",
+      "parameters": {
+        "routes": [
+          {
+            "condition": "{{2.data.items.pageInfo.hasNextPage}}",
+            "modules": [
+              {
+                "id": 5,
+                "name": "HTTP - Fetch Next Page",
+                "type": "http",
+                "operation": "request",
+                "parameters": {
+                  "method": "POST",
+                  "url": "https://your-graphql-endpoint.com/graphql",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer YOUR_API_TOKEN"
+                  },
+                  "body": {
+                    "query": "query FetchItems($first: Int!, $after: String) { items(first: $first, after: $after) { edges { node { id name } } pageInfo { endCursor hasNextPage } } }",
+                    "variables": {
+                      "first": 100,
+                      "after": "{{2.data.items.pageInfo.endCursor}}"
+                    }
+                  }
+                }
+              },
+              {
+                "id": 6,
+                "name": "JSON - Parse Next Page Response",
+                "type": "json",
+                "operation": "parse",
+                "parameters": {
+                  "content": "{{5.body}}"
+                }
+              },
+              {
+                "id": 7,
+                "name": "Iterator - Process Next Page Items",
+                "type": "iterator",
+                "operation": "iterate",
+                "parameters": {
+                  "array": "{{6.data.items.edges}}"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
